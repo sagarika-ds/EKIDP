@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ekidp-backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ekidp
+    username: ekidp_user
+    password: ekidp_pass
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  neo4j:
+    uri: bolt://localhost:7687
+    authentication:
+      username: neo4j
+      password: ekidp_neo4j
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+ekidp:
+  jwt:
+    secret: ekidp-super-secret-key-must-be-at-least-256-bits-long-for-hs256
+    expiration: 86400000
+  openai:
+    api-key: YOUR_OPENAI_KEY
+  anthropic:
+    api-key: YOUR_CLAUDE_KEY
+  chromadb:
+    url: http://localhost:8000
+  nlp:
+    service-url: http://localhost:8001

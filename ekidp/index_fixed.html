@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EKIDP — Executive Intelligence Console</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+:root{
+  --bg-0:#08090d;--bg-1:#0e1016;--bg-2:#141722;--panel:#11131b;
+  --border:#22273a;--border-soft:#1a1d2b;--text-hi:#eef0f6;--text-mid:#9aa1b8;
+  --text-low:#5b6178;--accent:#3ddc97;--accent-dim:#1f8a5f;--warn:#f5b04d;
+  --danger:#ef5a6f;--crit:#ff3b5c;--info:#5b8def;
+  --mono:"IBM Plex Mono","SF Mono",Consolas,monospace;
+  --sans:"Inter","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg-0);color:var(--text-hi);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+::selection{background:var(--accent-dim);}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:var(--bg-0);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.topbar{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border-soft);background:linear-gradient(180deg,var(--bg-1),var(--bg-0));position:sticky;top:0;z-index:50;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,var(--accent),var(--info));display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:13px;color:#04140d;}
+.brand-name{font-weight:600;font-size:15px;letter-spacing:.2px;}
+.brand-sub{font-family:var(--mono);font-size:10.5px;color:var(--text-low);letter-spacing:.5px;text-transform:uppercase;margin-left:6px;padding-top:1px;}
+.top-status{display:flex;align-items:center;gap:18px;}
+.status-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--text-mid);padding:5px 10px;border:1px solid var(--border-soft);border-radius:20px;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--text-low);flex-shrink:0;}
+.dot.up{background:var(--accent);box-shadow:0 0 8px var(--accent);}
+.dot.down{background:var(--crit);box-shadow:0 0 8px var(--crit);}
+.clock{font-family:var(--mono);font-size:12px;color:var(--text-mid);min-width:160px;text-align:right;}
+.shell{display:flex;min-height:calc(100vh - 56px);}
+.nav{width:188px;flex-shrink:0;border-right:1px solid var(--border-soft);padding:18px 10px;background:var(--bg-1);}
+.nav-section{margin-bottom:22px;}
+.nav-label{font-family:var(--mono);font-size:10px;color:var(--text-low);text-transform:uppercase;letter-spacing:1px;padding:0 10px 8px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;font-size:13px;color:var(--text-mid);cursor:pointer;transition:background .12s,color .12s;user-select:none;}
+.nav-item:hover{background:var(--bg-2);color:var(--text-hi);}
+.nav-item.active{background:var(--bg-2);color:var(--accent);}
+.nav-icon{width:14px;text-align:center;font-family:var(--mono);font-size:12px;opacity:.85;}
+.main{flex:1;padding:22px 28px 60px;max-width:1400px;}
+.view{display:none;}
+.view.active{display:block;animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.view-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.view-title{font-size:20px;font-weight:600;letter-spacing:-.2px;}
+.view-desc{font-size:12.5px;color:var(--text-mid);margin-top:2px;}
+.refresh-btn{font-family:var(--mono);font-size:11px;color:var(--text-mid);background:var(--panel);border:1px solid var(--border);padding:7px 12px;border-radius:6px;cursor:pointer;transition:border-color .15s,color .15s;}
+.refresh-btn:hover{border-color:var(--accent-dim);color:var(--accent);}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.kpi{background:var(--panel);border:1px solid var(--border-soft);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden;}
+.kpi::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--kpi-accent,var(--accent));}
+.kpi-label{font-size:11px;color:var(--text-mid);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;}
+.kpi-value{font-family:var(--mono);font-size:28px;font-weight:600;color:var(--text-hi);letter-spacing:-.5px;}
+.kpi-meta{font-size:11.5px;color:var(--text-low);margin-top:6px;}
+.row{display:grid;gap:14px;margin-bottom:14px;}
+.row-2{grid-template-columns:1.3fr 1fr;}
+.row-3{grid-template-columns:1fr 1fr 1fr;}
+.panel{background:var(--panel);border:1px solid var(--border-soft);border-radius:10px;padding:18px 20px;}
+.panel-title{font-size:13px;font-weight:600;color:var(--text-hi);margin-bottom:2px;display:flex;justify-content:space-between;align-items:center;}
+.panel-sub{font-size:11px;color:var(--text-low);margin-bottom:14px;}
+.chart-wrap{position:relative;height:240px;}
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-family:var(--mono);font-size:10.5px;color:var(--text-low);text-transform:uppercase;letter-spacing:.5px;font-weight:500;padding:8px 10px;border-bottom:1px solid var(--border-soft);}
+td{padding:10px 10px;font-size:13px;border-bottom:1px solid var(--border-soft);color:var(--text-hi);}
+tr:last-child td{border-bottom:none;}
+.badge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:.3px;}
+.badge.low{background:rgba(61,220,151,.12);color:var(--accent);}
+.badge.medium{background:rgba(245,176,77,.12);color:var(--warn);}
+.badge.high{background:rgba(239,90,111,.12);color:var(--danger);}
+.badge.critical{background:rgba(255,59,92,.14);color:var(--crit);}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+label{display:block;font-size:11px;color:var(--text-mid);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
+input,select,textarea{width:100%;background:var(--bg-1);border:1px solid var(--border);color:var(--text-hi);padding:9px 11px;border-radius:6px;font-size:13px;font-family:var(--sans);}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-dim);}
+textarea{resize:vertical;min-height:70px;}
+.btn{background:var(--accent);color:#04140d;font-weight:600;font-size:13px;border:none;padding:10px 18px;border-radius:6px;cursor:pointer;transition:filter .15s;}
+.btn:hover{filter:brightness(1.1);}
+.btn:disabled{opacity:.5;cursor:default;}
+.result-block{background:var(--bg-1);border:1px solid var(--border-soft);border-radius:8px;padding:16px;margin-top:14px;display:none;}
+.result-block.show{display:block;animation:fadeIn .3s ease;}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-soft);}
+.result-row:last-child{border-bottom:none;}
+.result-label{font-size:12px;color:var(--text-mid);}
+.result-value{font-family:var(--mono);font-size:14px;font-weight:600;}
+.factor-list{margin-top:10px;font-size:12px;color:var(--text-mid);}
+.factor-list li{margin-bottom:4px;list-style:none;padding-left:14px;position:relative;}
+.factor-list li::before{content:"—";position:absolute;left:0;color:var(--text-low);}
+.agent-trace{margin-top:16px;}
+.agent-step{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-soft);}
+.agent-step:last-child{border-bottom:none;}
+.agent-num{font-family:var(--mono);font-size:11px;color:var(--accent);width:24px;height:24px;border-radius:50%;border:1px solid var(--accent-dim);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.agent-name{font-size:12.5px;font-weight:600;margin-bottom:4px;}
+.agent-output{font-size:12px;color:var(--text-mid);white-space:pre-wrap;line-height:1.5;max-height:120px;overflow-y:auto;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-low);font-size:13px;}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--border);padding:12px 18px;border-radius:8px;font-size:12.5px;color:var(--text-hi);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:200;opacity:0;transform:translateY(10px);transition:opacity .25s,transform .25s;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.error{border-color:var(--crit);}
+.toast.success{border-color:var(--accent-dim);}
+.doc-list{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+.doc-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg-1);border:1px solid var(--border-soft);border-radius:8px;font-size:12.5px;}
+.doc-name{font-weight:600;color:var(--text-hi);}
+.doc-meta{color:var(--text-low);font-size:11px;font-family:var(--mono);margin-top:2px;}
+.graph-svg{width:100%;height:380px;}
+.legend-row{display:flex;gap:18px;margin-top:12px;font-size:11px;color:var(--text-mid);}
+.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;}
+select option{background:var(--bg-1);color:var(--text-hi);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">EK</div>
+    <div class="brand-name">EKIDP</div>
+    <div class="brand-sub">Decision Intelligence Console</div>
+  </div>
+  <div class="top-status">
+    <div class="status-pill"><span class="dot" id="dot-backend"></span>API&nbsp;<span id="lbl-backend">checking</span></div>
+    <div class="status-pill"><span class="dot" id="dot-nlp"></span>NLP&nbsp;<span id="lbl-nlp">checking</span></div>
+    <div class="status-pill"><span class="dot" id="dot-neo4j"></span>GRAPH&nbsp;<span id="lbl-neo4j">checking</span></div>
+    <div class="clock" id="clock"></div>
+  </div>
+</div>
+
+<div class="shell">
+  <div class="nav">
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" data-view="overview"><span class="nav-icon">◆</span>Command Center</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Knowledge</div>
+      <div class="nav-item" data-view="knowledge"><span class="nav-icon">▤</span>Document Hub</div>
+      <div class="nav-item" data-view="graph"><span class="nav-icon">◈</span>Knowledge Graph</div>
+      <div class="nav-item" data-view="rag"><span class="nav-icon">▣</span>Ask Knowledge Base</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Intelligence</div>
+      <div class="nav-item" data-view="risk"><span class="nav-icon">⚠</span>Risk Engine</div>
+      <div class="nav-item" data-view="decision"><span class="nav-icon">⬡</span>Decision Engine</div>
+      <div class="nav-item" data-view="predictive"><span class="nav-icon">↗</span>Predictive Models</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Account</div>
+      <div class="nav-item" data-view="auth"><span class="nav-icon">⚿</span>Sign In</div>
+      <div class="nav-item" data-view="register"><span class="nav-icon">✦</span>Register</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div class="view-header">
+        <div><div class="view-title">Command Center</div><div class="view-desc">Organization-wide knowledge and risk posture, live from connected services.</div></div>
+        <button class="refresh-btn" onclick="loadOverview()">↻ refresh</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi" style="--kpi-accent:var(--accent)"><div class="kpi-label">Total Employees</div><div class="kpi-value" id="kpi-employees">—</div><div class="kpi-meta">in knowledge graph</div></div>
+        <div class="kpi" style="--kpi-accent:var(--warn)"><div class="kpi-label">High Risk Employees</div><div class="kpi-value" id="kpi-highrisk">—</div><div class="kpi-meta">risk score ≥ 70</div></div>
+        <div class="kpi" style="--kpi-accent:var(--info)"><div class="kpi-label">Documents Indexed</div><div class="kpi-value" id="kpi-docs">—</div><div class="kpi-meta">in knowledge base</div></div>
+        <div class="kpi" id="kpi-org-card" style="--kpi-accent:var(--danger)"><div class="kpi-label">Organization Risk Level</div><div class="kpi-value" id="kpi-orgrisk">—</div><div class="kpi-meta" id="kpi-orgrisk-score">avg score —</div></div>
+      </div>
+      <div class="row row-2">
+        <div class="panel"><div class="panel-title">Employee Risk Distribution</div><div class="panel-sub">Risk score by individual</div><div class="chart-wrap"><canvas id="chart-employee-risk"></canvas></div></div>
+        <div class="panel"><div class="panel-title">Risk Tier Breakdown</div><div class="panel-sub">Share of employees per risk band</div><div class="chart-wrap"><canvas id="chart-risk-tiers"></canvas></div></div>
+      </div>
+      <div class="panel"><div class="panel-title">Recommended Actions</div><div class="panel-sub">Generated by the Risk Engine</div><ul class="factor-list" id="org-recommendations"></ul></div>
+    </div>
+
+    <!-- KNOWLEDGE HUB -->
+    <div class="view" id="view-knowledge">
+      <div class="view-header">
+        <div><div class="view-title">Document Hub</div><div class="view-desc">Upload and manage organizational documents.</div></div>
+        <button class="refresh-btn" onclick="loadDocuments()">↻ refresh</button>
+      </div>
+      <div class="row row-2">
+        <div class="panel">
+          <div class="panel-title">Upload Document</div>
+          <div class="panel-sub">PDF, DOCX, TXT, or CSV</div>
+          <div class="field-grid">
+            <div><label>Title</label><input id="doc-title" placeholder="e.g. Cloud Migration Strategy"></div>
+            <div><label>Department</label><input id="doc-dept" value="Engineering"></div>
+          </div>
+          <div class="field-grid">
+            <div><label>Category</label><input id="doc-category" value="Strategy"></div>
+            <div><label>File</label><input type="file" id="doc-file"></div>
+          </div>
+          <button class="btn" onclick="uploadDocument()" id="upload-btn">Upload & Extract</button>
+          <div class="result-block" id="upload-result"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Knowledge Base</div>
+          <div class="panel-sub" id="doc-count-label">— documents indexed</div>
+          <div class="doc-list" id="doc-list"><div class="empty-state">Sign in then refresh.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KNOWLEDGE GRAPH -->
+    <div class="view" id="view-graph">
+      <div class="view-header">
+        <div><div class="view-title">Knowledge Graph</div><div class="view-desc">Live relationships between employees, projects, and technologies from Neo4j.</div></div>
+        <button class="refresh-btn" onclick="loadGraph()">↻ refresh</button>
+      </div>
+      <div class="row row-3">
+        <div class="kpi"><div class="kpi-label">Employees</div><div class="kpi-value" id="graph-emp-count">—</div></div>
+        <div class="kpi"><div class="kpi-label">Projects</div><div class="kpi-value" id="graph-proj-count">—</div></div>
+        <div class="kpi"><div class="kpi-label">Technologies</div><div class="kpi-value" id="graph-tech-count">—</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Organization Graph</div>
+        <div class="panel-sub">Node size reflects risk score for employees</div>
+        <svg class="graph-svg" id="graph-svg"></svg>
+        <div class="legend-row">
+          <span><span class="legend-dot" style="background:var(--accent)"></span>Employee</span>
+          <span><span class="legend-dot" style="background:var(--info)"></span>Project</span>
+          <span><span class="legend-dot" style="background:var(--warn)"></span>Technology</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAG SEARCH -->
+    <div class="view" id="view-rag">
+      <div class="view-header"><div><div class="view-title">Ask the Knowledge Base</div><div class="view-desc">Retrieval-augmented search across all indexed documents.</div></div></div>
+      <div class="panel">
+        <label>Your question</label>
+        <textarea id="rag-question" placeholder="e.g. What is our cloud migration strategy?"></textarea>
+        <div style="margin-top:12px;"><button class="btn" onclick="askRag()" id="rag-btn">Ask</button></div>
+        <div class="result-block" id="rag-result">
+          <div class="result-row"><div class="result-label">Confidence</div><div class="result-value" id="rag-confidence">—</div></div>
+          <div class="result-row"><div class="result-label">Model</div><div class="result-value" id="rag-model">—</div></div>
+          <div style="margin-top:14px;"><div class="panel-sub">Answer</div><div id="rag-answer" style="font-size:13.5px;line-height:1.6;margin-top:6px;"></div></div>
+          <div style="margin-top:14px;"><div class="panel-sub">Sources</div><div id="rag-sources" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RISK ENGINE -->
+    <div class="view" id="view-risk">
+      <div class="view-header"><div><div class="view-title">Risk Engine</div><div class="view-desc">Knowledge concentration risk for individuals, projects, and departments.</div></div></div>
+      <div class="row row-3">
+        <div class="panel">
+          <div class="panel-title">Employee Risk</div>
+          <label>Email</label><input id="risk-employee-email" value="sagarika@ekidp.com">
+          <button class="btn" style="margin-top:10px;width:100%;" onclick="checkEmployeeRisk()">Calculate</button>
+          <div class="result-block" id="employee-risk-result"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Project Risk</div>
+          <label>Project name</label><input id="risk-project-name" value="Cloud Migration">
+          <button class="btn" style="margin-top:10px;width:100%;" onclick="checkProjectRisk()">Calculate</button>
+          <div class="result-block" id="project-risk-result"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Knowledge Gaps</div>
+          <label>Department</label><input id="risk-dept-name" value="Engineering">
+          <button class="btn" style="margin-top:10px;width:100%;" onclick="checkKnowledgeGaps()">Analyze</button>
+          <div class="result-block" id="gap-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DECISION ENGINE -->
+    <div class="view" id="view-decision">
+      <div class="view-header"><div><div class="view-title">Decision Engine</div><div class="view-desc">Six AI agents analyze your question collaboratively.</div></div></div>
+      <div class="panel">
+        <label>Decision question</label>
+        <textarea id="decision-question" placeholder="e.g. Should we migrate our infrastructure to AWS?"></textarea>
+        <div class="field-grid" style="margin-top:12px;">
+          <div><label>Context</label><input id="decision-context" placeholder="e.g. 50 person company"></div>
+          <div><label>Department</label><input id="decision-dept" value="Engineering"></div>
+        </div>
+        <button class="btn" onclick="runDecisionEngine()" id="decision-btn">Run Multi-Agent Analysis</button>
+        <div class="result-block" id="decision-result">
+          <div class="result-row"><div class="result-label">Decision</div><div class="result-value" id="decision-verdict">—</div></div>
+          <div class="result-row"><div class="result-label">Confidence</div><div class="result-value" id="decision-confidence">—</div></div>
+          <div class="result-row"><div class="result-label">Risk level</div><div class="result-value" id="decision-risklevel">—</div></div>
+          <div style="margin-top:14px;"><div class="panel-sub">Executive summary</div><div id="decision-summary" style="font-size:13px;line-height:1.6;margin-top:6px;"></div></div>
+          <div class="row row-2" style="margin-top:16px;">
+            <div><div class="panel-sub">Pros</div><ul class="factor-list" id="decision-pros"></ul></div>
+            <div><div class="panel-sub">Cons</div><ul class="factor-list" id="decision-cons"></ul></div>
+          </div>
+          <div class="agent-trace" id="decision-agents"><div class="panel-sub" style="margin-bottom:6px;">Agent reasoning trace</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PREDICTIVE -->
+    <div class="view" id="view-predictive">
+      <div class="view-header"><div><div class="view-title">Predictive Models</div><div class="view-desc">Random Forest models predicting project success, attrition, cost, and delay risk.</div></div></div>
+      <div class="row row-2">
+        <div class="panel">
+          <div class="panel-title">Project Success Probability</div>
+          <div class="field-grid">
+            <div><label>Team size</label><input type="number" id="ps-team" value="5"></div>
+            <div><label>Doc coverage %</label><input type="number" id="ps-doc" value="70"></div>
+            <div><label>Risk score</label><input type="number" id="ps-risk" value="30"></div>
+            <div><label>Budget health %</label><input type="number" id="ps-budget" value="80"></div>
+          </div>
+          <label>Avg experience (years)</label><input type="number" id="ps-exp" value="4" style="margin-bottom:10px;">
+          <button class="btn" onclick="predictSuccess()">Predict</button>
+          <div class="result-block" id="ps-result"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Employee Attrition Risk</div>
+          <div class="field-grid">
+            <div><label>Tenure (years)</label><input type="number" id="at-tenure" value="0.5"></div>
+            <div><label>Active projects</label><input type="number" id="at-projects" value="6"></div>
+            <div><label>Risk score</label><input type="number" id="at-risk" value="75"></div>
+            <div><label>Satisfaction %</label><input type="number" id="at-sat" value="40"></div>
+          </div>
+          <label>Workload %</label><input type="number" id="at-workload" value="85" style="margin-bottom:10px;">
+          <button class="btn" onclick="predictAttrition()">Predict</button>
+          <div class="result-block" id="at-result"></div>
+        </div>
+      </div>
+      <div class="row row-2">
+        <div class="panel">
+          <div class="panel-title">Cost Overrun Probability</div>
+          <div class="field-grid">
+            <div><label>Complexity</label><input type="number" id="co-complexity" value="75"></div>
+            <div><label>Team experience %</label><input type="number" id="co-exp" value="35"></div>
+            <div><label>Scope changes</label><input type="number" id="co-scope" value="5"></div>
+            <div><label>Timeline pressure %</label><input type="number" id="co-timeline" value="80"></div>
+          </div>
+          <label>Vendor dependency %</label><input type="number" id="co-vendor" value="65" style="margin-bottom:10px;">
+          <button class="btn" onclick="predictCostOverrun()">Predict</button>
+          <div class="result-block" id="co-result"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Delivery Delay Probability</div>
+          <div class="field-grid">
+            <div><label>Team size</label><input type="number" id="dl-team" value="2"></div>
+            <div><label>Doc coverage %</label><input type="number" id="dl-doc" value="30"></div>
+            <div><label>Risk score</label><input type="number" id="dl-risk" value="70"></div>
+            <div><label>Scope changes</label><input type="number" id="dl-scope" value="6"></div>
+          </div>
+          <label>Timeline pressure %</label><input type="number" id="dl-timeline" value="85" style="margin-bottom:10px;">
+          <button class="btn" onclick="predictDelay()">Predict</button>
+          <div class="result-block" id="dl-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIGN IN -->
+    <div class="view" id="view-auth">
+      <div class="view-header"><div><div class="view-title">Sign In</div><div class="view-desc">Authenticate to unlock live data across the console.</div></div></div>
+      <div class="panel" style="max-width:420px;">
+        <label>Email</label><input id="auth-email" value="sagarika@ekidp.com">
+        <label style="margin-top:10px;">Password</label><input id="auth-password" type="password" value="password123">
+        <button class="btn" style="margin-top:14px;width:100%;" onclick="login()">Sign In</button>
+        <div class="result-block" id="auth-result"></div>
+      </div>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="view" id="view-register">
+      <div class="view-header"><div><div class="view-title">Register New User</div><div class="view-desc">Create a new account with role-based access control.</div></div></div>
+      <div class="panel" style="max-width:480px;">
+        <div class="field-grid">
+          <div><label>Full Name</label><input id="reg-name" placeholder="e.g. John Smith"></div>
+          <div><label>Email</label><input id="reg-email" placeholder="john@company.com"></div>
+        </div>
+        <div class="field-grid">
+          <div><label>Password</label><input id="reg-password" type="password" placeholder="min 8 characters"></div>
+          <div><label>Department</label><input id="reg-dept" value="Engineering"></div>
+        </div>
+        <label style="margin-bottom:6px;">Role</label>
+        <select id="reg-role" style="margin-bottom:14px;">
+          <option value="EMPLOYEE">Employee</option>
+          <option value="MANAGER">Manager</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+        <button class="btn" style="width:100%;" onclick="registerUser()">Create Account</button>
+        <div class="result-block" id="register-result"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = "http://localhost:8080";
+const NLP_API = "http://localhost:8001";
+let TOKEN = localStorage.getItem("ekidp_token") || null;
+function authHeaders(){ return TOKEN ? {"Authorization":"Bearer "+TOKEN} : {}; }
+
+// NAVIGATION
+document.querySelectorAll(".nav-item").forEach(item=>{
+  item.addEventListener("click",()=>{
+    document.querySelectorAll(".nav-item").forEach(i=>i.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    item.classList.add("active");
+    const el = document.getElementById("view-"+item.dataset.view);
+    if(el) el.classList.add("active");
+    if(item.dataset.view==="overview") loadOverview();
+    if(item.dataset.view==="knowledge") loadDocuments();
+    if(item.dataset.view==="graph") loadGraph();
+  });
+});
+
+// CLOCK
+function tickClock(){
+  const now=new Date();
+  document.getElementById("clock").textContent=
+    now.toLocaleDateString(undefined,{month:"short",day:"2-digit",year:"numeric"})
+    +"  "+now.toLocaleTimeString();
+}
+setInterval(tickClock,1000); tickClock();
+
+// TOAST
+function showToast(msg,type="default"){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast show "+type;
+  setTimeout(()=>t.classList.remove("show"),3200);
+}
+
+// SAFE FETCH
+async function safeFetch(url,opts={}){
+  try{
+    const res=await fetch(url,opts);
+    const text=await res.text();
+    try{ return JSON.parse(text); }
+    catch(e){ return null; }
+  }catch(e){ return null; }
+}
+
+function riskBadgeClass(level){
+  if(!level) return "low";
+  const l=level.toUpperCase();
+  if(l.includes("CRIT")) return "critical";
+  if(l.includes("HIGH")) return "high";
+  if(l.includes("MED")) return "medium";
+  return "low";
+}
+function riskColor(level){
+  const map={LOW:"#3ddc97",MEDIUM:"#f5b04d",HIGH:"#ef5a6f",CRITICAL:"#ff3b5c"};
+  return map[(level||"LOW").toUpperCase()]||"#5b6178";
+}
+
+// HEALTH CHECKS
+async function checkHealth(){
+  const checks=[
+    {url:API+"/api/auth/health",dot:"dot-backend",lbl:"lbl-backend"},
+    {url:NLP_API+"/health",dot:"dot-nlp",lbl:"lbl-nlp"},
+  ];
+  for(const c of checks){
+    try{
+      const res=await fetch(c.url);
+      document.getElementById(c.dot).classList.toggle("up",res.ok);
+      document.getElementById(c.dot).classList.toggle("down",!res.ok);
+      document.getElementById(c.lbl).textContent=res.ok?"online":"down";
+    }catch(e){
+      document.getElementById(c.dot).classList.add("down");
+      document.getElementById(c.lbl).textContent="down";
+    }
+  }
+  const graph=await safeFetch(API+"/actuator/health");
+  document.getElementById("dot-neo4j").classList.toggle("up",!!graph);
+  document.getElementById("lbl-neo4j").textContent=graph?"online":"down";
+}
+checkHealth(); setInterval(checkHealth,15000);
+
+// AUTH - SIGN IN
+async function login(){
+  const email=document.getElementById("auth-email").value;
+  const password=document.getElementById("auth-password").value;
+  const box=document.getElementById("auth-result");
+  const data=await safeFetch(API+"/api/auth/login",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({email,password})
+  });
+  if(data&&data.token){
+    TOKEN=data.token;
+    localStorage.setItem("ekidp_token",TOKEN);
+    box.className="result-block show";
+    box.innerHTML=`
+      <div class="result-row"><div class="result-label">Status</div><div class="result-value" style="color:var(--accent)">Signed in ✓</div></div>
+      <div class="result-row"><div class="result-label">Name</div><div class="result-value">${data.fullName||"—"}</div></div>
+      <div class="result-row"><div class="result-label">Role</div><div class="result-value">${data.role||"—"}</div></div>
+      <div class="result-row"><div class="result-label">Department</div><div class="result-value">${data.department||"—"}</div></div>`;
+    showToast("Signed in as "+data.fullName,"success");
+    loadOverview();
+  }else{
+    box.className="result-block show";
+    box.innerHTML=`<div class="result-row"><div class="result-label">Status</div><div class="result-value" style="color:var(--crit)">Login failed — check credentials</div></div>`;
+    showToast("Login failed","error");
+  }
+}
+
+// AUTH - REGISTER
+async function registerUser(){
+  const fullName=document.getElementById("reg-name").value.trim();
+  const email=document.getElementById("reg-email").value.trim();
+  const password=document.getElementById("reg-password").value;
+  const department=document.getElementById("reg-dept").value.trim();
+  const role=document.getElementById("reg-role").value;
+  const box=document.getElementById("register-result");
+  if(!fullName||!email||!password){
+    showToast("Please fill in all required fields","error"); return;
+  }
+  const data=await safeFetch(API+"/api/auth/register",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({fullName,email,password,role,department})
+  });
+  if(data&&data.token){
+    box.className="result-block show";
+    box.innerHTML=`
+      <div class="result-row"><div class="result-label">Status</div><div class="result-value" style="color:var(--accent)">Account Created ✓</div></div>
+      <div class="result-row"><div class="result-label">Name</div><div class="result-value">${data.fullName}</div></div>
+      <div class="result-row"><div class="result-label">Email</div><div class="result-value">${data.email}</div></div>
+      <div class="result-row"><div class="result-label">Role</div><div class="result-value">${data.role}</div></div>
+      <div class="result-row"><div class="result-label">Department</div><div class="result-value">${data.department}</div></div>`;
+    showToast("Account created for "+data.fullName,"success");
+    document.getElementById("reg-name").value="";
+    document.getElementById("reg-email").value="";
+    document.getElementById("reg-password").value="";
+  }else{
+    box.className="result-block show";
+    box.innerHTML=`<div class="result-row"><div class="result-label">Status</div><div class="result-value" style="color:var(--crit)">Registration failed — email may already exist</div></div>`;
+    showToast("Registration failed","error");
+  }
+}
+
+// OVERVIEW
+let chartEmployeeRisk,chartRiskTiers;
+async function loadOverview(){
+  if(!TOKEN){ document.getElementById("org-recommendations").innerHTML="<li>Sign in to load live data.</li>"; return; }
+  const dashboard=await safeFetch(API+"/api/risk/dashboard",{headers:authHeaders()});
+  const docs=await safeFetch(API+"/api/knowledge/documents",{headers:authHeaders()});
+  if(dashboard){
+    document.getElementById("kpi-employees").textContent=dashboard.totalEmployees??0;
+    document.getElementById("kpi-highrisk").textContent=dashboard.highRiskEmployees??0;
+    document.getElementById("kpi-orgrisk").textContent=dashboard.organizationRiskLevel??"—";
+    document.getElementById("kpi-orgrisk-score").textContent="avg score "+(dashboard.averageEmployeeRisk??"—");
+    document.getElementById("kpi-org-card").style.setProperty("--kpi-accent",riskColor(dashboard.organizationRiskLevel));
+    const recs=document.getElementById("org-recommendations");
+    recs.innerHTML="";
+    (dashboard.recommendations||[]).forEach(r=>{ const li=document.createElement("li"); li.textContent=r; recs.appendChild(li); });
+    renderEmployeeRiskChart(dashboard.employeeRisks||[]);
+    renderRiskTierChart(dashboard.employeeRisks||[]);
+  }
+  if(docs) document.getElementById("kpi-docs").textContent=docs.length;
+}
+
+function renderEmployeeRiskChart(employees){
+  const ctx=document.getElementById("chart-employee-risk");
+  if(chartEmployeeRisk) chartEmployeeRisk.destroy();
+  chartEmployeeRisk=new Chart(ctx,{
+    type:"bar",
+    data:{labels:employees.map(e=>e.name),datasets:[{data:employees.map(e=>e.riskScore),backgroundColor:employees.map(e=>riskColor(e.riskLevel)),borderRadius:4,barThickness:28}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,max:100,grid:{color:"#1a1d2b"},ticks:{color:"#5b6178",font:{family:"IBM Plex Mono",size:10}}},x:{grid:{display:false},ticks:{color:"#9aa1b8",font:{size:11}}}}}
+  });
+}
+
+function renderRiskTierChart(employees){
+  const ctx=document.getElementById("chart-risk-tiers");
+  const tiers={LOW:0,MEDIUM:0,HIGH:0,CRITICAL:0};
+  employees.forEach(e=>{ const l=(e.riskLevel||"LOW").toUpperCase(); if(tiers[l]!==undefined) tiers[l]++; });
+  if(chartRiskTiers) chartRiskTiers.destroy();
+  chartRiskTiers=new Chart(ctx,{
+    type:"doughnut",
+    data:{labels:Object.keys(tiers),datasets:[{data:Object.values(tiers),backgroundColor:["#3ddc97","#f5b04d","#ef5a6f","#ff3b5c"],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:"68%",plugins:{legend:{position:"bottom",labels:{color:"#9aa1b8",font:{size:11},boxWidth:10}}}}
+  });
+}
+
+// KNOWLEDGE HUB
+async function uploadDocument(){
+  if(!TOKEN){ showToast("Sign in first","error"); return; }
+  const file=document.getElementById("doc-file").files[0];
+  if(!file){ showToast("Choose a file first","error"); return; }
+  const title=document.getElementById("doc-title").value||file.name;
+  const dept=document.getElementById("doc-dept").value||"General";
+  const category=document.getElementById("doc-category").value||"General";
+  const fd=new FormData();
+  fd.append("file",file); fd.append("title",title); fd.append("department",dept); fd.append("category",category);
+  const btn=document.getElementById("upload-btn");
+  btn.disabled=true; btn.innerHTML=`<span class="spinner"></span>Extracting...`;
+  try{
+    const res=await fetch(API+"/api/knowledge/upload",{method:"POST",headers:authHeaders(),body:fd});
+    const data=await res.json();
+    const box=document.getElementById("upload-result");
+    box.className="result-block show";
+    box.innerHTML=`
+      <div class="result-row"><div class="result-label">Status</div><div class="result-value" style="color:var(--accent)">Indexed ✓</div></div>
+      <div class="result-row"><div class="result-label">Type</div><div class="result-value">${data.fileType||"—"}</div></div>
+      <div class="result-row"><div class="result-label">Size</div><div class="result-value">${data.fileSize||0} bytes</div></div>
+      <div style="margin-top:10px;"><div class="panel-sub">Summary</div><div style="font-size:12.5px;color:var(--text-mid);margin-top:4px;">${data.summary||"—"}</div></div>`;
+    showToast("Document uploaded","success"); loadDocuments();
+  }catch(e){ showToast("Upload failed","error"); }
+  btn.disabled=false; btn.innerHTML="Upload & Extract";
+}
+
+async function loadDocuments(){
+  if(!TOKEN) return;
+  const docs=await safeFetch(API+"/api/knowledge/documents",{headers:authHeaders()});
+  const list=document.getElementById("doc-list");
+  const countLabel=document.getElementById("doc-count-label");
+  if(!docs||docs.length===0){ list.innerHTML=`<div class="empty-state">No documents yet.</div>`; countLabel.textContent="0 documents"; return; }
+  countLabel.textContent=docs.length+" document"+(docs.length===1?"":"s")+" indexed";
+  list.innerHTML="";
+  docs.forEach(d=>{
+    const item=document.createElement("div"); item.className="doc-item";
+    item.innerHTML=`<div><div class="doc-name">${d.title}</div><div class="doc-meta">${d.department} · ${d.category} · ${d.fileType}</div></div><span class="badge low">${d.status}</span>`;
+    list.appendChild(item);
+  });
+}
+
+// KNOWLEDGE GRAPH
+async function loadGraph(){
+  if(!TOKEN) return;
+  const data=await safeFetch(API+"/api/graph/knowledge-graph",{headers:authHeaders()});
+  if(!data) return;
+  document.getElementById("graph-emp-count").textContent=data.totalEmployees??0;
+  document.getElementById("graph-proj-count").textContent=data.totalProjects??0;
+  document.getElementById("graph-tech-count").textContent=data.totalTechnologies??0;
+  renderGraphSvg(data.employees||[],data.projects||[],data.technologies||[]);
+}
+
+function renderGraphSvg(employees,projects,technologies){
+  const svg=d3.select("#graph-svg"); svg.selectAll("*").remove();
+  const width=svg.node().clientWidth||900; const height=380;
+  const nodes=[]; const links=[];
+  employees.forEach(e=>{
+    nodes.push({id:"emp-"+e.id,label:e.name,type:"employee",risk:e.riskScore||0});
+    (e.projects||[]).forEach(p=>links.push({source:"emp-"+e.id,target:"proj-"+p.id}));
+    (e.technologies||[]).forEach(t=>links.push({source:"emp-"+e.id,target:"tech-"+t.id}));
+  });
+  projects.forEach(p=>{ nodes.push({id:"proj-"+p.id,label:p.name,type:"project"}); });
+  technologies.forEach(t=>{ nodes.push({id:"tech-"+t.id,label:t.name,type:"technology"}); });
+  if(nodes.length===0){ svg.append("text").attr("x",20).attr("y",30).attr("fill","#5b6178").attr("font-size","13px").text("No graph data yet."); return; }
+  const colorMap={employee:"#3ddc97",project:"#5b8def",technology:"#f5b04d"};
+  const sim=d3.forceSimulation(nodes).force("link",d3.forceLink(links).id(d=>d.id).distance(90)).force("charge",d3.forceManyBody().strength(-220)).force("center",d3.forceCenter(width/2,height/2));
+  const link=svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke","#22273a").attr("stroke-width",1.4);
+  const node=svg.append("g").selectAll("circle").data(nodes).enter().append("circle").attr("r",d=>d.type==="employee"?8+(d.risk||0)/12:9).attr("fill",d=>colorMap[d.type]).attr("stroke","#08090d").attr("stroke-width",2);
+  const label=svg.append("g").selectAll("text").data(nodes).enter().append("text").text(d=>d.label).attr("font-size","10.5px").attr("fill","#9aa1b8").attr("font-family","Inter,sans-serif").attr("dx",12).attr("dy",4);
+  sim.on("tick",()=>{
+    link.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+    node.attr("cx",d=>d.x).attr("cy",d=>d.y);
+    label.attr("x",d=>d.x).attr("y",d=>d.y);
+  });
+}
+
+// RAG
+async function askRag(){
+  if(!TOKEN){ showToast("Sign in first","error"); return; }
+  const question=document.getElementById("rag-question").value;
+  if(!question.trim()){ showToast("Type a question first","error"); return; }
+  const btn=document.getElementById("rag-btn");
+  btn.disabled=true; btn.innerHTML=`<span class="spinner"></span>Searching...`;
+  const data=await safeFetch(API+"/api/rag/search",{method:"POST",headers:{"Content-Type":"application/json",...authHeaders()},body:JSON.stringify({question,maxResults:5})});
+  btn.disabled=false; btn.textContent="Ask";
+  if(!data){ showToast("Search failed","error"); return; }
+  const box=document.getElementById("rag-result"); box.className="result-block show";
+  document.getElementById("rag-confidence").textContent=(data.confidenceScore*100).toFixed(0)+"%";
+  document.getElementById("rag-model").textContent=data.model;
+  document.getElementById("rag-answer").textContent=data.answer;
+  const sources=document.getElementById("rag-sources"); sources.innerHTML="";
+  (data.sourceDocs||[]).forEach(s=>{ const tag=document.createElement("span"); tag.className="badge low"; tag.textContent=s; sources.appendChild(tag); });
+}
+
+// RISK ENGINE
+async function checkEmployeeRisk(){
+  if(!TOKEN){ showToast("Sign in first","error"); return; }
+  const email=document.getElementById("risk-employee-email").value;
+  const data=await safeFetch(API+"/api/risk/employee/"+encodeURIComponent(email),{headers:authHeaders()});
+  const box=document.getElementById("employee-risk-result");
+  if(!data){ box.className="result-block show"; box.innerHTML=`<div class="result-row"><div class="result-label">Status</div><div class="result-value" style="color:var(--crit)">Not found</div></div>`; return; }
+  box.className="result-block show";
+  box.innerHTML=`<div class="result-row"><div class="result-label">${data.entityName}</div><span class="badge ${riskBadgeClass(data.riskLevel)}">${data.riskLevel}</span></div><div class="result-row"><div class="result-label">Risk score</div><div class="result-value">${data.riskScore}</div></div><ul class="factor-list">${(data.riskFactors||[]).map(f=>`<li>${f}</li>`).join("")}</ul>`;
+}
+
+async function checkProjectRisk(){
+  if(!TOKEN){ showToast("Sign in first","error"); return; }
+  const name=document.getElementById("risk-project-name").value;
+  const data=await safeFetch(API+"/api/risk/project/"+encodeURIComponent(name),{headers:authHeaders()});
+  const box=document.getElementById("project-risk-result");
+  if(!data){ box.className="result-block show"; box.innerHTML=`<div class="result-row"><div class="result-label">Status</div><div class="result-value" style="color:var(--crit)">Not found</div></div>`; return; }
+  box.className="result-block show";
+  box.innerHTML=`<div class="result-row"><div class="result-label">${data.entityName}</div><span class="badge ${riskBadgeClass(data.riskLevel)}">${data.riskLevel}</span></div><div class="result-row"><div class="result-label">Risk score</div><div class="result-value">${data.riskScore}</div></div><ul class="factor-list">${(data.riskFactors||[]).map(f=>`<li>${f}</li>`).join("")}</ul>`;
+}
+
+async function checkKnowledgeGaps(){
+  if(!TOKEN){ showToast("Sign in first","error"); return; }
+  const dept=document.getElementById("risk-dept-name").value;
+  const data=await safeFetch(API+"/api/risk/gaps/"+encodeURIComponent(dept),{headers:authHeaders()});
+  const box=document.getElementById("gap-result");
+  if(!data){ box.className="result-block show"; box.innerHTML=`<div class="result-row"><div class="result-label">Status</div><div class="result-value" style="color:var(--crit)">No data</div></div>`; return; }
+  box.className="result-block show";
+  box.innerHTML=`<div class="result-row"><div class="result-label">Gap score</div><div class="result-value">${data.gapScore}</div></div><div class="result-row"><div class="result-label">Employees</div><div class="result-value">${data.employeeCount}</div></div><ul class="factor-list">${(data.missingAreas||[]).map(f=>`<li>${f}</li>`).join("")}</ul>`;
+}
+
+// DECISION ENGINE
+async function runDecisionEngine(){
+  if(!TOKEN){ showToast("Sign in first","error"); return; }
+  const question=document.getElementById("decision-question").value;
+  if(!question.trim()){ showToast("Type a question first","error"); return; }
+  const context=document.getElementById("decision-context").value;
+  const department=document.getElementById("decision-dept").value;
+  const btn=document.getElementById("decision-btn");
+  btn.disabled=true; btn.innerHTML=`<span class="spinner"></span>Running 6 agents...`;
+  const data=await safeFetch(API+"/api/decision/analyze",{method:"POST",headers:{"Content-Type":"application/json",...authHeaders()},body:JSON.stringify({question,context,department,decisionType:"General"})});
+  btn.disabled=false; btn.textContent="Run Multi-Agent Analysis";
+  if(!data){ showToast("Decision engine failed","error"); return; }
+  const box=document.getElementById("decision-result"); box.className="result-block show";
+  document.getElementById("decision-verdict").textContent=data.decision;
+  document.getElementById("decision-verdict").style.color=data.decision==="APPROVE"?"var(--accent)":data.decision==="REJECT"?"var(--crit)":"var(--warn)";
+  document.getElementById("decision-confidence").textContent=(data.confidenceScore*100).toFixed(0)+"%";
+  document.getElementById("decision-risklevel").textContent=data.riskLevel;
+  document.getElementById("decision-summary").textContent=data.executiveSummary;
+  document.getElementById("decision-pros").innerHTML=(data.pros||[]).map(p=>`<li>${p}</li>`).join("");
+  document.getElementById("decision-cons").innerHTML=(data.cons||[]).map(c=>`<li>${c}</li>`).join("");
+  const agentBox=document.getElementById("decision-agents");
+  agentBox.innerHTML=`<div class="panel-sub" style="margin-bottom:6px;">Agent reasoning trace</div>`;
+  let i=1;
+  for(const [name,output] of Object.entries(data.agentOutputs||{})){
+    const step=document.createElement("div"); step.className="agent-step";
+    step.innerHTML=`<div class="agent-num">${i++}</div><div style="flex:1;"><div class="agent-name">${name}</div><div class="agent-output">${output}</div></div>`;
+    agentBox.appendChild(step);
+  }
+}
+
+// PREDICTIVE
+function renderPredictionResult(boxId,mainLabel,mainValue,predictionTag,factors,color){
+  const box=document.getElementById(boxId); box.className="result-block show";
+  box.innerHTML=`<div class="result-row"><div class="result-label">${mainLabel}</div><div class="result-value" style="color:${color}">${mainValue}</div></div><div class="result-row"><div class="result-label">Prediction</div><span class="badge ${predictionTag.cls}">${predictionTag.text}</span></div><ul class="factor-list">${factors.map(f=>`<li>${f}</li>`).join("")}</ul>`;
+}
+
+async function predictSuccess(){
+  const data=await safeFetch(NLP_API+"/predict/project-success",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({team_size:+document.getElementById("ps-team").value,doc_coverage:+document.getElementById("ps-doc").value,risk_score:+document.getElementById("ps-risk").value,budget_health:+document.getElementById("ps-budget").value,experience_years:+document.getElementById("ps-exp").value})});
+  if(!data){ showToast("Prediction service unavailable","error"); return; }
+  renderPredictionResult("ps-result","Success probability",data.successProbability+"%",{cls:data.prediction==="SUCCESS"?"low":"high",text:data.prediction},data.riskFactors||[],data.prediction==="SUCCESS"?"var(--accent)":"var(--danger)");
+}
+
+async function predictAttrition(){
+  const data=await safeFetch(NLP_API+"/predict/attrition",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tenure_years:+document.getElementById("at-tenure").value,project_count:+document.getElementById("at-projects").value,risk_score:+document.getElementById("at-risk").value,satisfaction:+document.getElementById("at-sat").value,workload:+document.getElementById("at-workload").value})});
+  if(!data){ showToast("Prediction service unavailable","error"); return; }
+  renderPredictionResult("at-result","Attrition probability",data.attritionProbability+"%",{cls:data.prediction==="STABLE"?"low":"critical",text:data.prediction},data.riskFactors||[],data.prediction==="STABLE"?"var(--accent)":"var(--crit)");
+}
+
+async function predictCostOverrun(){
+  const data=await safeFetch(NLP_API+"/predict/cost-overrun",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({project_complexity:+document.getElementById("co-complexity").value,team_experience:+document.getElementById("co-exp").value,scope_changes:+document.getElementById("co-scope").value,timeline_pressure:+document.getElementById("co-timeline").value,vendor_dependency:+document.getElementById("co-vendor").value})});
+  if(!data){ showToast("Prediction service unavailable","error"); return; }
+  renderPredictionResult("co-result","Overrun probability",data.overrunProbability+"% (est. +"+data.estimatedOverrunPercentage+"%)",{cls:data.prediction==="ON_BUDGET"?"low":"high",text:data.prediction},data.riskFactors||[],data.prediction==="ON_BUDGET"?"var(--accent)":"var(--danger)");
+}
+
+async function predictDelay(){
+  const data=await safeFetch(NLP_API+"/predict/delivery-delay",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({team_size:+document.getElementById("dl-team").value,doc_coverage:+document.getElementById("dl-doc").value,risk_score:+document.getElementById("dl-risk").value,scope_changes:+document.getElementById("dl-scope").value,timeline_pressure:+document.getElementById("dl-timeline").value})});
+  if(!data){ showToast("Prediction service unavailable","error"); return; }
+  renderPredictionResult("dl-result","Delay probability",data.delayProbability+"% (~"+data.estimatedDelayDays+" days)",{cls:data.prediction==="ON_TRACK"?"low":"high",text:data.prediction},data.riskFactors||[],data.prediction==="ON_TRACK"?"var(--accent)":"var(--danger)");
+}
+
+// INIT
+if(TOKEN) loadOverview();
+</script>
+</body>
+</html>
