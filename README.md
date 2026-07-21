@@ -1,1 +1,2 @@
-Enterprise Knowledge Intelligence and Decision Platform
+# EKIDP
+(Enterprise Knowledge Intelligence and Decision Platform)
