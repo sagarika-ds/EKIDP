@@ -48,4 +48,4 @@ This project demonstrates enterprise application development using Spring Boot, 
 
 📄 License
 
-This project was developed as a personal learning and portfolio project.
+This project was developed as a personal learning .
