@@ -50,4 +50,4 @@ Author
 Sagarika D S
 📄 License
 
-This project was developed as a personal learning .
+This project was developed for personal learning .
