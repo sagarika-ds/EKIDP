@@ -46,8 +46,5 @@ Open the application in your browser.
 
 This project demonstrates enterprise application development using Spring Boot, NLP with spaCy, Knowledge Graphs (Neo4j), Retrieval-Augmented Generation (RAG), Machine Learning, REST APIs, and Docker-based deployment.
 
-Author
-Sagarika D S
-📄 License
 
-This project was developed for personal learning .
+This project was developed for personal learning.
