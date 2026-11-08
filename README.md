@@ -1,4 +1,4 @@
-🚀 EKIDP – Enterprise Knowledge Intelligence & Decision Platform
+🚀 EKIDP – Enterprise Knowledge Intelligence and Decision Platform
 
 An AI-powered enterprise platform that prevents organizational knowledge loss and accelerates executive decision-making by combining document intelligence, a knowledge graph, retrieval-augmented search (RAG) and predictive analytics.
 
@@ -44,7 +44,4 @@ Open the application in your browser.
 
 🎯 Learning Outcomes
 
-This project demonstrates enterprise application development using Spring Boot, NLP with spaCy, Knowledge Graphs (Neo4j), Retrieval-Augmented Generation (RAG), Machine Learning, REST APIs, and Docker-based deployment.
-
-
-This project was developed for personal learning.
+This project demonstrates enterprise application development using Spring Boot, NLP with spaCy, Knowledge Graphs (Neo4j), Retrieval-Augmented Generation (RAG), Machine Learning, REST APIs and Docker-based deployment.
